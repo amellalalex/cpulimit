@@ -27,6 +27,9 @@
 
 #include "list.h"
 
+#include <libgen.h>
+#include <unistd.h>
+
 #define PIDHASH_SZ 1024
 #define pid_hashfn(x) ((((x) >> 8) ^ (x)) & (PIDHASH_SZ - 1))
 

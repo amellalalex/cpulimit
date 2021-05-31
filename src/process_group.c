@@ -24,8 +24,8 @@
 #include <limits.h>
 #include <sys/time.h>
 #include <signal.h>
-
 #include <assert.h>
+#include <sys/types.h>
 
 #include "process_iterator.h"
 #include "process_group.h"
@@ -37,7 +37,7 @@
 //          negative pid, if the process does not exist or if the signal fails
 int find_process_by_pid(pid_t pid)
 {
-	return (kill(pid,0)==0) ? pid : -pid;
+	return (kill(pid, 0) == 0) ? pid : -pid;
 }
 
 // look for a process with a given name
@@ -61,18 +61,22 @@ int find_process_by_name(const char *process_name)
 	while (get_next_process(&it, &proc) != -1)
 	{
 		//process found
-		if (strncmp(basename(proc.command), process_name, strlen(process_name))==0 && kill(pid,SIGCONT)==0) {
+		if (strncmp(basename(proc.command), process_name, strlen(process_name)) == 0 && kill(pid, SIGCONT) == 0)
+		{
 			//process is ok!
 			pid = proc.pid;
 			break;
 		}
 	}
-	if (close_process_iterator(&it) != 0) exit(1);
-	if (pid >= 0) {
+	if (close_process_iterator(&it) != 0)
+		exit(1);
+	if (pid >= 0)
+	{
 		//ok, the process was found
 		return pid;
 	}
-	else {
+	else
+	{
 		//process not found
 		return 0;
 	}
@@ -84,7 +88,7 @@ int init_process_group(struct process_group *pgroup, int target_pid, int include
 	memset(&pgroup->proctable, 0, sizeof(pgroup->proctable));
 	pgroup->target_pid = target_pid;
 	pgroup->include_children = include_children;
-	pgroup->proclist = (struct list*)malloc(sizeof(struct list));
+	pgroup->proclist = (struct list *)malloc(sizeof(struct list));
 	init_list(pgroup->proclist, 4);
 	memset(&pgroup->last_update, 0, sizeof(pgroup->last_update));
 	update_process_group(pgroup);
@@ -94,9 +98,11 @@ int init_process_group(struct process_group *pgroup, int target_pid, int include
 int close_process_group(struct process_group *pgroup)
 {
 	int i;
-	int size = sizeof(pgroup->proctable) / sizeof(struct process*);
-	for (i=0; i<size; i++) {
-		if (pgroup->proctable[i] != NULL) {
+	int size = sizeof(pgroup->proctable) / sizeof(struct process *);
+	for (i = 0; i < size; i++)
+	{
+		if (pgroup->proctable[i] != NULL)
+		{
 			//free() history for each process
 			destroy_list(pgroup->proctable[i]);
 			free(pgroup->proctable[i]);
@@ -115,7 +121,7 @@ void remove_terminated_processes(struct process_group *pgroup)
 }
 
 //return t1-t2 in microseconds (no overflow checks, so better watch out!)
-static inline unsigned long timediff(const struct timeval *t1,const struct timeval *t2)
+static inline unsigned long timediff(const struct timeval *t1, const struct timeval *t2)
 {
 	return (t1->tv_sec - t2->tv_sec) * 1000000 + (t1->tv_usec - t2->tv_usec);
 }
@@ -141,9 +147,9 @@ void update_process_group(struct process_group *pgroup)
 
 	while (get_next_process(&it, &tmp_process) != -1)
 	{
-//		struct timeval t;
-//		gettimeofday(&t, NULL);
-//		printf("T=%ld.%ld PID=%d PPID=%d START=%d CPUTIME=%d\n", t.tv_sec, t.tv_usec, tmp_process.pid, tmp_process.ppid, tmp_process.starttime, tmp_process.cputime);
+		//		struct timeval t;
+		//		gettimeofday(&t, NULL);
+		//		printf("T=%ld.%ld PID=%d PPID=%d START=%d CPUTIME=%d\n", t.tv_sec, t.tv_usec, tmp_process.pid, tmp_process.ppid, tmp_process.starttime, tmp_process.cputime);
 		int hashkey = pid_hashfn(tmp_process.pid);
 		if (pgroup->proctable[hashkey] == NULL)
 		{
@@ -159,7 +165,7 @@ void update_process_group(struct process_group *pgroup)
 		else
 		{
 			//existing bucket
-			struct process *p = (struct process*)locate_elem(pgroup->proctable[hashkey], &tmp_process);
+			struct process *p = (struct process *)locate_elem(pgroup->proctable[hashkey], &tmp_process);
 			if (p == NULL)
 			{
 				//process is new. add it
@@ -174,32 +180,38 @@ void update_process_group(struct process_group *pgroup)
 				assert(tmp_process.pid == p->pid);
 				assert(tmp_process.starttime == p->starttime);
 				add_elem(pgroup->proclist, p);
-				if (dt < MIN_DT) continue;
+				if (dt < MIN_DT)
+					continue;
 				//process exists. update CPU usage
 				double sample = 1.0 * (tmp_process.cputime - p->cputime) / dt;
-				if (p->cpu_usage == -1) {
+				if (p->cpu_usage == -1)
+				{
 					//initialization
 					p->cpu_usage = sample;
 				}
-				else {
+				else
+				{
 					//usage adjustment
-					p->cpu_usage = (1.0-ALFA) * p->cpu_usage + ALFA * sample;
+					p->cpu_usage = (1.0 - ALFA) * p->cpu_usage + ALFA * sample;
 				}
 				p->cputime = tmp_process.cputime;
 			}
 		}
 	}
 	close_process_iterator(&it);
-	if (dt < MIN_DT) return;
+	if (dt < MIN_DT)
+		return;
 	pgroup->last_update = now;
 }
 
 int remove_process(struct process_group *pgroup, int pid)
 {
 	int hashkey = pid_hashfn(pid);
-	if (pgroup->proctable[hashkey] == NULL) return 1; //nothing to delete
-	struct list_node *node = (struct list_node*)locate_node(pgroup->proctable[hashkey], &pid);
-	if (node == NULL) return 2;
+	if (pgroup->proctable[hashkey] == NULL)
+		return 1; //nothing to delete
+	struct list_node *node = (struct list_node *)locate_node(pgroup->proctable[hashkey], &pid);
+	if (node == NULL)
+		return 2;
 	delete_node(pgroup->proctable[hashkey], node);
 	return 0;
 }
